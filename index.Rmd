@@ -164,7 +164,7 @@ plot(cmRF2$table, col = cmRF2$byClass, main = paste("Confusion Matrix RF2: Accur
 This model provides an accuracy of 0.994 which is a serious candidate to be the winner, with a very narrow CI, so a consistent performance over the test set. 
 
 
-### A Generalized Boosting model 
+### A Gradient Boosting model 
 
 This particular model is not built for accuracy, just to get a model comparable with the Random Forests. The options are tuned to keep  execution time low rather than to achieve higher precision. We perform a 5 fold cross-validation in this case. 
 
@@ -207,7 +207,7 @@ This model would also not pass the classification quiz.
 ### Conclusions and predictions on the submission data
 
 By comparing just the accuracy of the models on the testing data set, the best model is the Random Forests, followed by the 
-Generalized Boosting Model. The other two models provide data to compare the performances. The simplest Random Forests model provides an accuracy of 0.994 and an out of sample error rate of 1-0.994 = 0.006, which is pretty good in my opinion without performing any type of optimization. 
+Gradient Boosting Model. The other two models provide data to compare the performances. The simplest Random Forests model provides an accuracy of 0.994 and an out of sample error rate of 1-0.994 = 0.006, which is pretty good in my opinion without performing any type of optimization. 
 The second best model is the Generalised Boosting Model, which again I did not push to any extent, with 0.957. On the forSubmission data set I get identical results to the random forests attempt, which is a good sign. The other two models, a Classification Tree model and a Linear discriminant Analysis model do not perform satisfactorily in comparison, with 0.734 and 0.707 respectively, so they would fail the prediction 
 quiz which requires at least 80% correct responses.  
 
