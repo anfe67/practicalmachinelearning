@@ -259,7 +259,7 @@ cmRP</code></pre>
 </div>
 <div id="random-forests" class="section level3">
 <h3>Random Forests</h3>
-<p>Here I will generate a basic Random Forests model. The execution through the caret package takes way longer, to I call randomForest directly and with no parameters at all.</p>
+<p>Here I will generate a basic Random Forests model. The execution through the caret package takes way longer, to I call randomForest directly and with no parameters at all. Note that In random forests, there is no need for cross-validation or a separate test set to get an unbiased estimate of the test set error. It is estimated internally , during the run…</p>
 <pre class="r"><code>library(caret)
 library(randomForest)
 # Set a seed for reproduceability:  
@@ -310,7 +310,7 @@ cmRF2</code></pre>
 </div>
 <div id="a-generalized-boosting-model" class="section level3">
 <h3>A Generalized Boosting model</h3>
-<p>This particular model is not built for accuracy, just to get a model comparable with the Random Forests. The options are tuned to keep execution time low rather than to achieve higher precision.</p>
+<p>This particular model is not built for accuracy, just to get a model comparable with the Random Forests. The options are tuned to keep execution time low rather than to achieve higher precision. We perform a 5 fold cross-validation in this case.</p>
 <pre class="r"><code># Set a seed for reproduceability:
 set.seed(54321)
 fitControl &lt;- trainControl(method='cv', number=5, returnResamp='none',  classProbs = TRUE)

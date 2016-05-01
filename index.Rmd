@@ -140,7 +140,8 @@ This model provides an accuracy of 0.7346 which is not good enough to achieve th
 ### Random Forests 
 
 Here I will generate a basic Random Forests model. The execution through the caret package takes way longer, to I call 
-randomForest directly and with no parameters at all. 
+randomForest directly and with no parameters at all. Note that In random forests, there is no need for cross-validation or a 
+separate test set to get an unbiased estimate of the test set error. It is estimated internally , during the run...
 
 ```{r, cache=FALSE, message=FALSE, warning=FALSE}
 library(caret)
@@ -165,7 +166,7 @@ This model provides an accuracy of 0.994 which is a serious candidate to be the 
 
 ### A Generalized Boosting model 
 
-This particular model is not built for accuracy, just to get a model comparable with the Random Forests. The options are tuned to keep  execution time low rather than to achieve higher precision. 
+This particular model is not built for accuracy, just to get a model comparable with the Random Forests. The options are tuned to keep  execution time low rather than to achieve higher precision. We perform a 5 fold cross-validation in this case. 
 
 ```{r, cache=TRUE}
 # Set a seed for reproduceability:
