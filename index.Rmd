@@ -1,0 +1,247 @@
+---
+title: "Practical Machine Learning Course Project: Predicting barbell lifts performance quality"
+author: "Antonio Ferraro"
+date: "30 April 2016"
+output: 
+  html_document: 
+    keep_md: yes
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Synopsis
+
+Based on a training and a testing data sets, obtained using devices such as Jawbone Up, Nike FuelBand, and Fitbit, the goal of this project is to produce a model which to predict how well a certain exercise has been performed. The data contains measurements about 6 participants who were asked to perform barbell lifts correctly and incorrectly in 5 different ways. The results are in the "classe" variable in the training set. 
+
+So, the question is: "Given the available data, how well can we predict the quality of the execution of the activity?" 
+
+
+## Data Processing
+The data sets are loaded and explored. 
+
+```{r}
+
+# URLS 
+trainingUrl  <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+testingUrl   <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+# FILES
+trainingFile <- "pml-training.csv"
+testingFile  <- "pml-testing.csv"
+# Download Files
+download.file(url=trainingUrl, destfile=trainingFile)
+download.file(url=testingUrl, destfile = testingFile)
+# DATAFRAMES. I consider empty fields as NA
+training    <- read.csv(trainingFile, na.strings=c("NA", "", "#DIV/0!"), header=TRUE)
+testing     <- read.csv(testingFile,  na.strings=c("NA", "", "#DIV/0!"), header=TRUE)
+dim(training)
+dim(testing)
+
+```
+
+## Considerations and data cleanup
+
+The testing set must in reality be the submission set for the project quiz as the number of observations is 20 and this is too small for a testing set. Furthermore it does not contain the classe field, so we cannot actually use it for evaluation. So, from now on this will be the "forSubmission" dataframe. I rename the dataframes to be in line with the course slides, then I proceed to a classical training/testing split of the training set as seen in the course lessons. As I am on a slow PC and the training part is what takes more time, I reduce the size of the training set to .55 (testing .45). I am not sure that this really affect the accuracy, it is actually likely that this will give me more conservative measures being my verifications performed on bigger data sets. I also proceed to some cleaning, removing not useful variables from all the dataframes. as well as variables (columns) which are mostly N/A. 
+
+```{r, cache=TRUE, message=FALSE, warning=FALSE}
+# Need caret 
+library(caret)
+
+# Data for final quiz submission  
+forSubmission <- testing  
+
+# This is actually the dataset to split
+data          <- training
+
+# Set a seed for reproduceability 
+set.seed(54321)
+
+# Partitioning the data (Data Selection)
+# I partition .55 and .45 to make training faster
+inTraining  <- createDataPartition(data$classe, p=0.55, list=FALSE)
+# Training and testing dataframes
+training    <- data[inTraining, ]
+testing     <- data[-inTraining, ]
+
+# Verify sizes 
+dim(training); dim(testing)
+
+# Cleaning data (Feature Selection): 
+# Some variables not useful for predictions: 
+# Index, Name, 3*timestamps, 2*window. They are the first 7.  
+training       <- training[, -c(1:7)]
+
+# I also look at the N/A values, it is unlikely that they 
+# can be any good as predictors. I set the threshold to .4 (40%) 
+
+toRemove <- NULL
+
+for(i in 1:length(training)) {
+    if( sum( is.na( training[, i] ) ) /nrow(training) >= .4) {
+          if (exists("toRemove"))
+                  toRemove       <- c(toRemove, names(training)[i])
+          else
+                  toRemove       <- c(names(training)[i])
+    }
+}
+
+training  <- training[, !names(training) %in% toRemove]
+
+# A check with  nearZeroVar with the default parameters to exclude "near zero-variance" predictors
+# reveals that all the selected predictors should ve included 
+# nearZeroVar(training, saveMetrics=TRUE) 
+
+```
+### Note 1: 
+I do not need to remove the columns in the testing and forSubmission dataframes. The model built on training shall not contain 
+any of the removed variables, so they shall also not be used (they shall be ignored) during prediction.
+
+### Note 2: 
+A check with  nearZeroVar with the default parameters (to exclude "near zero-variance" predictors)
+reveals all the selected predictors should be included nearZeroVar(training, saveMetrics=TRUE) 
+This does not change anything anyway, so I commented it in the code. 
+
+## Creating alternative models and selecting the best one for prediction
+
+The problem at hand is a classification problem as opposed to a regression problem. Therefore, 
+I will create several classifiers among those seen in the course, I will compare their performances 
+and select the best one to submit the results of the final quiz.  
+
+### Classification Tree 
+
+The first model I try is a basic classification tree, that I then plot and evaluate. 
+
+```{r, cache=TRUE, message=FALSE, warning=FALSE}
+library(rpart)
+
+# Set a seed for reproduceability:  
+set.seed(54321)
+
+modCT <- rpart(classe ~ ., data=training, method="class")
+# During development only
+# print(modCT, digits=3)
+
+library(rattle)
+fancyRpartPlot(modCT)
+
+# Evaluate against testing set  
+predictionsCT <- predict(modCT, newdata=testing,  type = "class")
+cmRP <- confusionMatrix(predictionsCT, testing$classe)
+cmRP
+plot(cmRP$table, col = cmRP$byClass, main = paste("Confusion Matrix CT: Accuracy =", round(cmRP$overall['Accuracy'], 5)))
+
+```
+
+This model provides an accuracy of 0.7346 which is not good enough to achieve the 0.8 required to pass the quiz. 
+
+
+### Random Forests 
+
+Here I will generate a basic Random Forests model. The execution through the caret package takes way longer, to I call 
+randomForest directly and with no parameters at all. 
+
+```{r, cache=FALSE, message=FALSE, warning=FALSE}
+library(caret)
+library(randomForest)
+# Set a seed for reproduceability:  
+set.seed(54321)
+
+# This runs faster when called directly instead of using the caret package 
+modRF2 <- randomForest(classe ~ ., data=training)
+# print(modRF2, digits=3)
+
+# Evaluate against testing set  
+predictionsRF2 <- predict(modRF2, newdata=testing)
+cmRF2 <- confusionMatrix(predictionsRF2, testing$classe)
+cmRF2
+plot(cmRF2$table, col = cmRF2$byClass, main = paste("Confusion Matrix RF2: Accuracy =", round(cmRF2$overall['Accuracy'], 5)))
+
+```
+
+This model provides an accuracy of 0.994 which is a serious candidate to be the winner, with a very narrow CI, so a consistent performance over the test set. 
+
+
+### A Generalized Boosting model 
+
+This particular model is not built for accuracy, just to get a model comparable with the Random Forests. The options are tuned to keep  execution time low rather than to achieve higher precision. 
+
+```{r, cache=TRUE}
+# Set a seed for reproduceability:
+set.seed(54321)
+fitControl <- trainControl(method='cv', number=5, returnResamp='none',  classProbs = TRUE)
+modGBM     <- train(classe ~ ., data= training, method="gbm", trControl=fitControl, verbose=F )
+# print(modGBM, digits=3)
+
+predictionsGBM <- predict(modGBM, newdata=testing)
+cmGBM          <- confusionMatrix(predictionsGBM, testing$classe)
+cmGBM
+plot(cmGBM$table, col = cmGBM$byClass, main = paste("Confusion Matrix GBM: Accuracy =", round(cmGBM$overall['Accuracy'], 5)))
+
+```
+
+Also not a bad performer either if compared with the simple Classification Tree, sufficient to pass the quiz with a very good confidence but worse than the Random Forests. 
+
+### A linear discriminant analysis model
+
+I also generate a simple linear discriminant analysis model for comparison.
+
+```{r, cache=TRUE}
+# Set a seed for reproduceability:
+set.seed(54321)
+modLDA <- train(classe ~ ., data= training, method="lda")
+print(modLDA, digits=3)
+
+predictionsLDA <- predict(modLDA, newdata=testing)
+cmLDA <- confusionMatrix(predictionsLDA, testing$classe)
+cmLDA
+plot(cmLDA$table, col = cmLDA$byClass, main = paste("Confusion Matrix LDA: Accuracy =", round(cmLDA$overall['Accuracy'], 5)))
+
+```
+
+This model would also not pass the classification quiz.
+
+
+### Conclusions and predictions on the submission data
+
+By comparing just the accuracy of the models on the testing data set, the best model is the Random Forests, followed by the 
+Generalized Boosting Model. The other two models provide data to compare the performances. The simplest Random Forests model provides an accuracy of 0.994 and an out of sample error rate of 1-0.994 = 0.006, which is pretty good in my opinion without performing any type of optimization. 
+The second best model is the Generalised Boosting Model, which again I did not push to any extent, with 0.957. On the forSubmission data set I get identical results to the random forests attempt, which is a good sign. The other two models, a Classification Tree model and a Linear discriminant Analysis model do not perform satisfactorily in comparison, with 0.734 and 0.707 respectively, so they would fail the prediction 
+quiz which requires at least 80% correct responses.  
+
+```{r, cache=FALSE, echo=TRUE, results="hide", message=FALSE, warning=FALSE}
+
+# Building manually a comparison table 
+
+resultsTable               <- NULL
+resultsTable               <- data.frame(predict(modRF2, newdata=forSubmission))
+resultsTable               <- cbind(resultsTable, predict(modGBM, newdata=forSubmission))
+resultsTable               <- cbind(resultsTable, predict(modCT, newdata=forSubmission, type="class"))
+resultsTable               <- cbind(resultsTable, predict(modLDA, newdata=forSubmission))
+names(resultsTable)[1]     <- "1: RF"
+names(resultsTable)[2]     <- "2: GBM"
+names(resultsTable)[3]     <- "3: CT"
+names(resultsTable)[4]     <- "4: LDA"
+
+```
+
+```{r, cache=FALSE, echo=TRUE}
+library(htmlTable)
+htmlTable(t(resultsTable))
+
+```
+
+The Random Forests classifier is the model I will use to submit my answers to the quiz. 
+
+### Acknowledgements 
+
+As all the other students doing this project, I owe the data set and a word of thanks to:  
+
+Ugulino, W.; Cardador, D.; Vega, K.; Velloso, E.; Milidiu, R.; Fuks, H. Wearable Computing: Accelerometers' Data Classification of Body Postures and Movements. Proceedings of 21st Brazilian Symposium on Artificial Intelligence. Advances in Artificial Intelligence - SBIA 2012. In: Lecture Notes in Computer Science. , pp. 52-61. Curitiba, PR: Springer Berlin / Heidelberg, 2012. ISBN 978-3-642-34458-9. DOI: 10.1007/978-3-642-34459-6_6.
+
+(http://groupware.les.inf.puc-rio.br/har)
+
+Furthermore, many thanks to Len Greski for his beautiful guide on setting up gh-pages on github (https://github.com/lgreski/datasciencectacontent/blob/master/markdown/pml-ghPagesSetup.md).
+
+
